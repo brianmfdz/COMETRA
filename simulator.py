@@ -6,11 +6,14 @@ class Simulator:
     def step(self, dt):
         for body in self.solarSystem.bodies:
 
-            acceleration = self.physicsModel.calculateSunGravity(
+            acceleration = self.physicsModel.calculateGravity(
+                self.solarSystem.bodies[0],
                 body.CelesPosition
             )
 
-            body.CelesVelocity = body.CelesVelocity + acceleration * dt
+            body.CelesVelocity = (
+                body.CelesVelocity + acceleration * dt
+            )
 
             newPosition = (
                 body.CelesPosition

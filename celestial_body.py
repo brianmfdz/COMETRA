@@ -2,24 +2,43 @@ import numpy as np
 
 
 class CelestialBody:
-    def __init__(self, CelesName, CelesPosition, CelesVelocity=(0, 0, 0)):
+    def __init__(
+        self,
+        CelesName,
+        CelesPosition,
+        CelesVelocity=(0, 0, 0),
+        CelesMass=0
+    ):
         self.CelesName = CelesName
         self.CelesPosition = np.array(CelesPosition, dtype=float)
         self.CelesVelocity = np.array(CelesVelocity, dtype=float)
+        self.CelesMass = CelesMass
 
     def setPosition(self, newPosition):
         self.CelesPosition = np.array(newPosition, dtype=float)
 
 
 class Planet(CelestialBody):
-    def __init__(self, CelesName, CelesPosition, CelesVelocity=(0, 0, 0)):
-        super().__init__(CelesName, CelesPosition, CelesVelocity)
+    def __init__(
+        self,
+        CelesName,
+        CelesPosition,
+        CelesVelocity=(0, 0, 0),
+        CelesMass=0
+    ):
+        super().__init__(
+            CelesName,
+            CelesPosition,
+            CelesVelocity,
+            CelesMass
+        )
 
     def showInfo(self):
         print(
             f"Name: {self.CelesName}, "
             f"Position: {self.CelesPosition}, "
-            f"Velocity: {self.CelesVelocity}"
+            f"Velocity: {self.CelesVelocity}, "
+            f"Mass: {self.CelesMass}"
         )
 
 
@@ -29,9 +48,15 @@ class Comet(CelestialBody):
         CelesName,
         CelesPosition,
         CometID,
-        CelesVelocity=(0, 0, 0)
+        CelesVelocity=(0, 0, 0),
+        CelesMass=0
     ):
-        super().__init__(CelesName, CelesPosition, CelesVelocity)
+        super().__init__(
+            CelesName,
+            CelesPosition,
+            CelesVelocity,
+            CelesMass
+        )
         self.CometID = CometID
 
     def showInfo(self):
@@ -39,5 +64,6 @@ class Comet(CelestialBody):
             f"Name: {self.CelesName}, "
             f"Position: {self.CelesPosition}, "
             f"Velocity: {self.CelesVelocity}, "
+            f"Mass: {self.CelesMass}, "
             f"Comet ID: {self.CometID}"
         )

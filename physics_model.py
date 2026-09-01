@@ -8,9 +8,15 @@ class PhysicsModel:
     def showModelInfo(self):
         print("physics_model_info : Gravitational Model")
 
-    def calculateSunGravity(self, position):
-        distance = np.linalg.norm(position)
+    def calculateGravity(self, sourceBody, targetPosition):
+        direction = sourceBody.CelesPosition - targetPosition
+        distance = np.linalg.norm(direction)
 
-        acceleration = -self.G * self.SUN_MASS * position / distance**3
+        acceleration = (
+            self.G
+            * sourceBody.CelesMass
+            * direction
+            / distance**3
+        )
 
         return acceleration
