@@ -38,7 +38,7 @@ bodies = [sun, earth, jupiter, comet1, comet2]
 
 solarSystem = SolarSystem(bodies)
 
-simulator = Simulator(solarSystem)
+simulator = Simulator(solarSystem, physicsModel)
 
 
 print("\nBefore simulation:")
