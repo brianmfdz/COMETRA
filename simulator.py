@@ -4,15 +4,34 @@ class Simulator:
         self.physicsModel = PhysicsModel
 
     def step(self, dt):
+
+        accelerations = []
+
         for body in self.solarSystem.bodies:
 
-            acceleration = self.physicsModel.calculateGravity(
-                self.solarSystem.bodies[0],
-                body.CelesPosition
-            )
+            totalAcceleration = 0
+
+            for otherBody in self.solarSystem.bodies:
+
+                if body == otherBody:
+                    continue
+
+                acceleration = self.physicsModel.calculateGravity(
+                    otherBody,
+                    body.CelesPosition
+                )
+
+                totalAcceleration = (
+                    totalAcceleration + acceleration
+                )
+
+            accelerations.append(totalAcceleration)
+
+        for i, body in enumerate(self.solarSystem.bodies):
 
             body.CelesVelocity = (
-                body.CelesVelocity + acceleration * dt
+                body.CelesVelocity
+                + accelerations[i] * dt
             )
 
             newPosition = (

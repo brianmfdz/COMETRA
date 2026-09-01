@@ -10,31 +10,82 @@ physicsModel = PhysicsModel()
 physicsModel.showModelInfo()
 
 
-sun = Planet("Sun", (0, 0, 0))
+sun = Planet(
+    "Sun",
+    (0, 0, 0),
+    (0, 0, 0),
+    physicsModel.SUN_MASS
+)
 
-earth = Planet("Earth", (0, 0, 0))
+mercury = Planet(
+    "Mercury",
+    (5.790e10, 0, 0),
+    (0, 47360, 0),
+    3.301e23
+)
+
+venus = Planet(
+    "Venus",
+    (1.082e11, 0, 0),
+    (0, 35020, 0),
+    4.867e24
+)
+
+earth = Planet(
+    "Earth",
+    (1.496e11, 0, 0),
+    (0, 29780, 0),
+    5.972e24
+)
+
+mars = Planet(
+    "Mars",
+    (2.279e11, 0, 0),
+    (0, 24130, 0),
+    6.417e23
+)
 
 jupiter = Planet(
     "Jupiter",
-    (3, 4, 5),
-    (0, 29.78, 0)
+    (7.785e11, 0, 0),
+    (0, 13070, 0),
+    1.898e27
 )
 
-comet1 = Comet(
-    "46P",
-    (1, 2, 3),
-    "C-2024"
+saturn = Planet(
+    "Saturn",
+    (1.434e12, 0, 0),
+    (0, 9680, 0),
+    5.683e26
 )
 
-comet2 = Comet(
-    "67P",
-    (4, 5, 6),
-    "C-2025",
-    (0, 20, 0)
+uranus = Planet(
+    "Uranus",
+    (2.871e12, 0, 0),
+    (0, 6800, 0),
+    8.681e25
+)
+
+neptune = Planet(
+    "Neptune",
+    (4.495e12, 0, 0),
+    (0, 5430, 0),
+    1.024e26
 )
 
 
-bodies = [sun, earth, jupiter, comet1, comet2]
+bodies = [
+    sun,
+    mercury,
+    venus,
+    earth,
+    mars,
+    jupiter,
+    saturn,
+    uranus,
+    neptune
+]
+
 
 solarSystem = SolarSystem(bodies)
 
@@ -42,15 +93,11 @@ simulator = Simulator(solarSystem, physicsModel)
 
 
 print("\nBefore simulation:")
-jupiter.showInfo()
+solarSystem.showInfo()
 
 
 simulator.step(1)
 
 
 print("\nAfter 1 time step:")
-jupiter.showInfo()
-
-
-print("\nAll celestial bodies:")
 solarSystem.showInfo()

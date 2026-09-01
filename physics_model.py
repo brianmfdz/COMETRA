@@ -12,6 +12,9 @@ class PhysicsModel:
         direction = sourceBody.CelesPosition - targetPosition
         distance = np.linalg.norm(direction)
 
+        if distance == 0:
+            return np.array([0.0, 0.0, 0.0])
+
         acceleration = (
             self.G
             * sourceBody.CelesMass
