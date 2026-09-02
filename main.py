@@ -7,6 +7,7 @@ from physics_model import PhysicsModel
 from data_loader import DataLoader
 from fragmentation_model import FragmentationModel
 from fragmentation_event import FragmentationEvent
+from trajectory_analysis import TrajectoryAnalysis
 
 physicsModel = PhysicsModel()
 dataLoader = DataLoader()
@@ -307,4 +308,39 @@ for fragment in testFragments:
         fragment.FragmentID,
         "trajectory points:",
         len(fragment.trajectory)
+    )
+
+print("\nClosest approach analysis test:")
+
+trajectoryAnalysis = TrajectoryAnalysis()
+
+earth = None
+
+for body in testSolarSystem.bodies:
+
+    if body.CelesName == "Earth":
+        earth = body
+        break
+
+
+for fragment in testFragments:
+
+    minimumDistance, closestPoint = (
+        trajectoryAnalysis.calculateClosestApproach(
+            earth,
+            fragment
+        )
+    )
+
+    print(
+        fragment.FragmentID,
+        "closest Earth distance:",
+        minimumDistance / 1000,
+        "km"
+    )
+
+    print(
+        fragment.FragmentID,
+        "closest trajectory point:",
+        closestPoint
     )
