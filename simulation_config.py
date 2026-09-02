@@ -4,6 +4,7 @@ class SimulationConfig:
         self,
         cometName,
         cometID,
+        cometDesignation,
         startDate,
         simulationDuration,
         timeStep,
@@ -12,6 +13,7 @@ class SimulationConfig:
     ):
         self.cometName = cometName
         self.cometID = cometID
+        self.cometDesignation = cometDesignation
         self.startDate = startDate
         self.simulationDuration = simulationDuration
         self.timeStep = timeStep
