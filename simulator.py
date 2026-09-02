@@ -49,6 +49,11 @@ class Simulator:
 
             body.setPosition(newPosition)
 
+            # Save the new position
+            body.trajectory.append(
+                body.CelesPosition.copy()
+            )
+
         newAccelerations = self.calculateAccelerations()
 
         for i, body in enumerate(self.solarSystem.bodies):

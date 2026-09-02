@@ -85,3 +85,20 @@ for i in range(24):
 
 print("\nAfter 24 hours:")
 solarSystem.showInfo()
+
+print("\nTrajectory test:")
+
+print(
+    "Halley trajectory points:",
+    len(halley.trajectory)
+)
+
+print(
+    "First position:",
+    halley.trajectory[0]
+)
+
+print(
+    "Last position:",
+    halley.trajectory[-1]
+)
