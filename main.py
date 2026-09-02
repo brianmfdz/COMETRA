@@ -1,6 +1,6 @@
 print("COMETRA is starting...")
 
-from celestial_body import Planet
+from celestial_body import Planet, CometFragment
 from solar_system import SolarSystem
 from simulator import Simulator
 from physics_model import PhysicsModel
@@ -102,3 +102,15 @@ print(
     "Last position:",
     halley.trajectory[-1]
 )
+
+print("\nFragment object test:")
+
+testFragment = CometFragment(
+    "Halley Fragment 1",
+    halley.CelesPosition.copy(),
+    halley.CometID,
+    "F1",
+    halley.CelesVelocity.copy()
+)
+
+testFragment.showInfo()

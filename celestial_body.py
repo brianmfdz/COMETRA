@@ -14,11 +14,15 @@ class CelestialBody:
         self.CelesVelocity = np.array(CelesVelocity, dtype=float)
         self.CelesMass = CelesMass
 
-        # Stores the position of the body during the simulation
-        self.trajectory = [self.CelesPosition.copy()]
+        self.trajectory = [
+            self.CelesPosition.copy()
+        ]
 
     def setPosition(self, newPosition):
-        self.CelesPosition = np.array(newPosition, dtype=float)
+        self.CelesPosition = np.array(
+            newPosition,
+            dtype=float
+        )
 
 
 class Planet(CelestialBody):
@@ -70,4 +74,33 @@ class Comet(CelestialBody):
             f"Velocity: {self.CelesVelocity}, "
             f"Mass: {self.CelesMass}, "
             f"Comet ID: {self.CometID}"
+        )
+
+
+class CometFragment(Comet):
+    def __init__(
+        self,
+        CelesName,
+        CelesPosition,
+        CometID,
+        FragmentID,
+        CelesVelocity=(0, 0, 0),
+        CelesMass=0
+    ):
+        super().__init__(
+            CelesName,
+            CelesPosition,
+            CometID,
+            CelesVelocity,
+            CelesMass
+        )
+
+        self.FragmentID = FragmentID
+
+    def showInfo(self):
+        print(
+            f"Name: {self.CelesName}, "
+            f"Fragment ID: {self.FragmentID}, "
+            f"Position: {self.CelesPosition}, "
+            f"Velocity: {self.CelesVelocity}"
         )
