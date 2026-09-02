@@ -1,4 +1,5 @@
 import requests
+import re
 
 
 class DataLoader:
@@ -31,3 +32,29 @@ class DataLoader:
         data = response.json()
 
         return data
+
+    def parseStateVector(self, data):
+
+        result = data["result"]
+
+        x = re.search(r"X\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        y = re.search(r"Y\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        z = re.search(r"Z\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+
+        vx = re.search(r"VX=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        vy = re.search(r"VY=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        vz = re.search(r"VZ=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+
+        position = [
+            float(x.group(1)) * 1000,
+            float(y.group(1)) * 1000,
+            float(z.group(1)) * 1000
+        ]
+
+        velocity = [
+            float(vx.group(1)) * 1000,
+            float(vy.group(1)) * 1000,
+            float(vz.group(1)) * 1000
+        ]
+
+        return position, velocity

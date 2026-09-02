@@ -111,6 +111,7 @@ print("Testing JPL API...")
 
 from data_loader import DataLoader
 
+
 dataLoader = DataLoader()
 
 data = dataLoader.getStateVector(
@@ -118,4 +119,10 @@ data = dataLoader.getStateVector(
     "2026-09-02"
 )
 
-print(data)
+position, velocity = dataLoader.parseStateVector(data)
+
+print("\nEarth position (m):")
+print(position)
+
+print("\nEarth velocity (m/s):")
+print(velocity)
