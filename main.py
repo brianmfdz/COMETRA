@@ -5,7 +5,7 @@ from solar_system import SolarSystem
 from simulator import Simulator
 from physics_model import PhysicsModel
 from data_loader import DataLoader
-
+from fragmentation_model import FragmentationModel
 
 physicsModel = PhysicsModel()
 dataLoader = DataLoader()
@@ -114,3 +114,57 @@ testFragment = CometFragment(
 )
 
 testFragment.showInfo()
+
+print("\nFragmentation simulation test:")
+
+fragmentationModel = FragmentationModel()
+
+separationVelocities = [
+    (10, 0, 0),
+    (-10, 0, 0),
+    (0, 10, 0)
+]
+
+fragments = fragmentationModel.createFragments(
+    halley,
+    separationVelocities
+)
+
+for fragment in fragments:
+    solarSystem.bodies.append(fragment)
+
+
+print("\nFragments before simulation:")
+
+for fragment in fragments:
+    fragment.showInfo()
+
+
+# Simulate the fragments for 24 hours
+
+for i in range(24):
+    simulator.step(timeStep)
+
+
+print("\nFragments after simulation:")
+
+for fragment in fragments:
+    fragment.showInfo()
+
+
+print("\nFragment trajectories:")
+
+for fragment in fragments:
+    print(
+        fragment.FragmentID,
+        "trajectory points:",
+        len(fragment.trajectory)
+    )
+
+    print("\nFinal fragment positions:")
+
+for fragment in fragments:
+    print(
+        fragment.FragmentID,
+        fragment.CelesPosition
+    )
