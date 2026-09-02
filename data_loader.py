@@ -1,6 +1,8 @@
 import requests
 import re
-from celestial_body import Planet
+
+from celestial_body import Planet, Comet
+
 
 class DataLoader:
 
@@ -37,13 +39,49 @@ class DataLoader:
 
         result = data["result"]
 
-        x = re.search(r"X\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
-        y = re.search(r"Y\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
-        z = re.search(r"Z\s*=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        start = result.find("$$SOE")
+        end = result.find("$$EOE")
 
-        vx = re.search(r"VX=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
-        vy = re.search(r"VY=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
-        vz = re.search(r"VZ=\s*([+-]?\d+\.?\d*E?[+-]?\d*)", result)
+        if start == -1 or end == -1:
+            raise ValueError("State vector data not found")
+
+        stateData = result[start:end]
+
+        x = re.search(
+            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        y = re.search(
+            r"Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        z = re.search(
+            r"Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vx = re.search(
+            r"VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vy = re.search(
+            r"VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vz = re.search(
+            r"VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        if not x or not y or not z:
+            raise ValueError("Position data not found")
+
+        if not vx or not vy or not vz:
+            raise ValueError("Velocity data not found")
 
         position = [
             float(x.group(1)) * 1000,
@@ -61,7 +99,10 @@ class DataLoader:
 
     def loadPlanet(self, name, bodyID, mass, date):
 
-        data = self.getStateVector(bodyID, date)
+        data = self.getStateVector(
+            bodyID,
+            date
+        )
 
         position, velocity = self.parseStateVector(data)
 
@@ -73,3 +114,21 @@ class DataLoader:
         )
 
         return planet
+
+    def loadComet(self, name, bodyID, cometID, date):
+
+        data = self.getStateVector(
+            bodyID,
+            date
+        )
+
+        position, velocity = self.parseStateVector(data)
+
+        comet = Comet(
+            name,
+            position,
+            cometID,
+            velocity
+        )
+
+        return comet

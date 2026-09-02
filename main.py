@@ -11,6 +11,8 @@ physicsModel = PhysicsModel()
 dataLoader = DataLoader()
 
 
+# Sun
+
 sun = Planet(
     "Sun",
     (0, 0, 0),
@@ -18,6 +20,8 @@ sun = Planet(
     physicsModel.SUN_MASS
 )
 
+
+# Planets
 
 planetData = [
     ("Mercury", "199", 3.301e23),
@@ -45,8 +49,19 @@ for name, bodyID, mass in planetData:
     planets.append(planet)
 
 
-bodies = [sun] + planets
+# Comet
 
+halley = dataLoader.loadComet(
+    "1P/Halley",
+    "90000030;",
+    "1P",
+    "2026-09-02"
+)
+
+
+# Solar System
+
+bodies = [sun] + planets + [halley]
 
 solarSystem = SolarSystem(bodies)
 
@@ -59,6 +74,8 @@ simulator = Simulator(
 print("\nBefore simulation:")
 solarSystem.showInfo()
 
+
+# Simulate 24 hours
 
 timeStep = 60 * 60
 
