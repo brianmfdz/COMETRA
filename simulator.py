@@ -34,6 +34,9 @@ class Simulator:
 
         for i, body in enumerate(self.solarSystem.bodies):
 
+            if body.CelesName == "Sun":
+                continue
+
             body.CelesVelocity = (
                 body.CelesVelocity
                 + 0.5 * oldAccelerations[i] * dt
@@ -49,6 +52,9 @@ class Simulator:
         newAccelerations = self.calculateAccelerations()
 
         for i, body in enumerate(self.solarSystem.bodies):
+
+            if body.CelesName == "Sun":
+                continue
 
             body.CelesVelocity = (
                 body.CelesVelocity

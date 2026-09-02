@@ -1,6 +1,6 @@
 import requests
 import re
-
+from celestial_body import Planet
 
 class DataLoader:
 
@@ -58,3 +58,18 @@ class DataLoader:
         ]
 
         return position, velocity
+
+    def loadPlanet(self, name, bodyID, mass, date):
+
+        data = self.getStateVector(bodyID, date)
+
+        position, velocity = self.parseStateVector(data)
+
+        planet = Planet(
+            name,
+            position,
+            velocity,
+            mass
+        )
+
+        return planet
