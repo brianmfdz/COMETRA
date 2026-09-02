@@ -6,6 +6,7 @@ from simulator import Simulator
 from physics_model import PhysicsModel
 from data_loader import DataLoader
 from fragmentation_model import FragmentationModel
+from fragmentation_event import FragmentationEvent
 
 physicsModel = PhysicsModel()
 dataLoader = DataLoader()
@@ -78,9 +79,12 @@ solarSystem.showInfo()
 # Simulate 24 hours
 
 timeStep = 60 * 60
+simulationTime = 24 * 60 * 60
 
-for i in range(24):
-    simulator.step(timeStep)
+simulator.simulate(
+    simulationTime,
+    timeStep
+)
 
 
 print("\nAfter 24 hours:")
@@ -167,4 +171,140 @@ for fragment in fragments:
     print(
         fragment.FragmentID,
         fragment.CelesPosition
+    )
+
+print("\nFragmentation event test:")
+
+fragmentationEvent = FragmentationEvent(
+    12 * timeStep,
+    [
+        (10, 0, 0),
+        (-10, 0, 0),
+        (0, 10, 0)
+    ]
+)
+
+print(
+    "Fragmentation time:",
+    fragmentationEvent.fragmentationTime
+)
+
+print(
+    "Current simulation time:",
+    simulator.currentTime
+)
+
+print(
+    "Event reached:",
+    fragmentationEvent.isTime(
+        simulator.currentTime
+    )
+)
+
+print("\nSimulation event timing test:")
+
+eventTime = simulator.currentTime + (12 * timeStep)
+
+print(
+    "Current time before event:",
+    simulator.currentTime
+)
+
+simulator.simulateUntil(
+    eventTime,
+    timeStep
+)
+
+print(
+    "Current time after event:",
+    simulator.currentTime
+)
+
+print(
+    "Target event time:",
+    eventTime
+)
+
+print("\nConfigurable fragmentation simulation test:")
+
+# Create a new comet simulation
+
+testHalley = dataLoader.loadComet(
+    "1P/Halley",
+    "90000030;",
+    "1P",
+    "2026-09-02"
+)
+
+testBodies = [sun] + planets + [testHalley]
+
+testSolarSystem = SolarSystem(testBodies)
+
+testSimulator = Simulator(
+    testSolarSystem,
+    physicsModel
+)
+
+testFragmentationModel = FragmentationModel()
+
+
+# Fragmentation configuration
+
+fragmentationTime = 12 * timeStep
+
+separationVelocities = [
+    (10, 0, 0),
+    (-10, 0, 0),
+    (0, 10, 0),
+    (0, -10, 0)
+]
+
+
+testFragmentationEvent = FragmentationEvent(
+    fragmentationTime,
+    separationVelocities
+)
+
+
+# Run simulation
+
+endTime = 24 * timeStep
+
+testFragments = testSimulator.simulateWithFragmentation(
+    testHalley,
+    testFragmentationEvent,
+    testFragmentationModel,
+    endTime,
+    timeStep
+)
+
+
+print(
+    "Fragmentation time:",
+    fragmentationTime
+)
+
+print(
+    "Simulation end time:",
+    testSimulator.currentTime
+)
+
+print(
+    "Number of fragments:",
+    testFragmentationEvent.getFragmentCount()
+)
+
+
+for fragment in testFragments:
+
+    print(
+        fragment.FragmentID,
+        "separation velocity:",
+        fragment.CelesVelocity
+    )
+
+    print(
+        fragment.FragmentID,
+        "trajectory points:",
+        len(fragment.trajectory)
     )

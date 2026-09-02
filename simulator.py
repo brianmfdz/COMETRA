@@ -2,6 +2,7 @@ class Simulator:
     def __init__(self, SolarSystem, PhysicsModel):
         self.solarSystem = SolarSystem
         self.physicsModel = PhysicsModel
+        self.currentTime = 0
 
     def calculateAccelerations(self):
         accelerations = []
@@ -49,7 +50,6 @@ class Simulator:
 
             body.setPosition(newPosition)
 
-            # Save the new position
             body.trajectory.append(
                 body.CelesPosition.copy()
             )
@@ -65,3 +65,62 @@ class Simulator:
                 body.CelesVelocity
                 + 0.5 * newAccelerations[i] * dt
             )
+
+        self.currentTime = self.currentTime + dt
+
+    def simulate(self, duration, dt):
+
+        targetTime = self.currentTime + duration
+
+        while self.currentTime < targetTime:
+
+            remainingTime = targetTime - self.currentTime
+
+            stepTime = min(
+                dt,
+                remainingTime
+            )
+
+            self.step(stepTime)
+
+    def simulateUntil(self, targetTime, dt):
+
+        while self.currentTime < targetTime:
+
+            remainingTime = targetTime - self.currentTime
+
+            stepTime = min(
+                dt,
+                remainingTime
+            )
+
+            self.step(stepTime)
+
+    def simulateWithFragmentation(
+        self,
+        comet,
+        fragmentationEvent,
+        fragmentationModel,
+        endTime,
+        dt
+    ):
+
+        self.simulateUntil(
+            fragmentationEvent.fragmentationTime,
+            dt
+        )
+
+        fragments = fragmentationModel.createFragments(
+            comet,
+            fragmentationEvent.separationVelocities
+        )
+
+        for fragment in fragments:
+            self.solarSystem.bodies.append(fragment)
+
+        self.simulateUntil(
+            endTime,
+            dt
+        )
+
+        return fragments
