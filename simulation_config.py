@@ -5,17 +5,15 @@ class SimulationConfig:
         cometName,
         cometID,
         cometDesignation,
-        startDate,
-        simulationDuration,
-        timeStep,
-        fragmentationTime,
+        fragmentationDate,
+        simulationEndDate,
         separationVelocities
     ):
         self.cometName = cometName
         self.cometID = cometID
         self.cometDesignation = cometDesignation
-        self.startDate = startDate
-        self.simulationDuration = simulationDuration
-        self.timeStep = timeStep
-        self.fragmentationTime = fragmentationTime
+
+        self.fragmentationDate = fragmentationDate
+        self.simulationEndDate = simulationEndDate
+
         self.separationVelocities = separationVelocities

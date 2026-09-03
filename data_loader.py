@@ -8,16 +8,22 @@ class DataLoader:
 
     API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
 
-    def getStateVector(self, bodyID, date):
+    def getEphemeris(
+        self,
+        bodyID,
+        startDate,
+        endDate,
+        stepSize
+    ):
 
         parameters = {
             "format": "json",
             "COMMAND": f"'{bodyID}'",
             "EPHEM_TYPE": "'VECTORS'",
             "CENTER": "'500@10'",
-            "START_TIME": f"'{date}'",
-            "STOP_TIME": f"'{date} 00:01'",
-            "STEP_SIZE": "'1d'",
+            "START_TIME": f"'{startDate}'",
+            "STOP_TIME": f"'{endDate}'",
+            "STEP_SIZE": f"'{stepSize}'",
             "OUT_UNITS": "'KM-S'",
             "REF_PLANE": "'ECLIPTIC'",
             "REF_SYSTEM": "'ICRF'",
@@ -26,16 +32,22 @@ class DataLoader:
 
         response = requests.get(
             self.API_URL,
-            params=parameters
+            params=parameters,
+            timeout=30
         )
 
         response.raise_for_status()
 
         data = response.json()
 
+        if "result" not in data:
+            raise ValueError(
+                "JPL Horizons did not return a result."
+            )
+
         return data
 
-    def parseStateVector(self, data):
+    def parseEphemeris(self, data):
 
         result = data["result"]
 
@@ -43,92 +55,103 @@ class DataLoader:
         end = result.find("$$EOE")
 
         if start == -1 or end == -1:
-            raise ValueError("State vector data not found")
+            raise ValueError(
+                "Ephemeris data not found."
+            )
 
         stateData = result[start:end]
 
-        x = re.search(
-            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+        pattern = (
+            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+            r"\s*Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+            r"\s*Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+            r"\s*VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+            r"\s*VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+            r"\s*VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
+        )
+
+        matches = re.findall(
+            pattern,
             stateData
         )
 
-        y = re.search(
-            r"Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+        if not matches:
+            raise ValueError(
+                "No state vectors were found."
+            )
 
-        z = re.search(
-            r"Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+        ephemeris = []
 
-        vx = re.search(
-            r"VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+        for match in matches:
 
-        vy = re.search(
-            r"VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+            x, y, z, vx, vy, vz = match
 
-        vz = re.search(
-            r"VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+            position = [
+                float(x) * 1000,
+                float(y) * 1000,
+                float(z) * 1000
+            ]
 
-        if not x or not y or not z:
-            raise ValueError("Position data not found")
+            velocity = [
+                float(vx) * 1000,
+                float(vy) * 1000,
+                float(vz) * 1000
+            ]
 
-        if not vx or not vy or not vz:
-            raise ValueError("Velocity data not found")
+            ephemeris.append(
+                {
+                    "position": position,
+                    "velocity": velocity
+                }
+            )
 
-        position = [
-            float(x.group(1)) * 1000,
-            float(y.group(1)) * 1000,
-            float(z.group(1)) * 1000
-        ]
+        return ephemeris
 
-        velocity = [
-            float(vx.group(1)) * 1000,
-            float(vy.group(1)) * 1000,
-            float(vz.group(1)) * 1000
-        ]
+    def loadEphemeris(
+        self,
+        bodyName,
+        bodyID,
+        startDate,
+        endDate,
+        stepSize
+    ):
 
-        return position, velocity
-
-    def loadPlanet(self, name, bodyID, mass, date):
-
-        data = self.getStateVector(
+        data = self.getEphemeris(
             bodyID,
-            date
+            startDate,
+            endDate,
+            stepSize
         )
 
-        position, velocity = self.parseStateVector(data)
+        return self.parseEphemeris(data)
 
-        planet = Planet(
+    def loadPlanet(
+        self,
+        name,
+        bodyID,
+        mass,
+        position,
+        velocity
+    ):
+
+        return Planet(
             name,
             position,
             velocity,
             mass
         )
 
-        return planet
+    def loadComet(
+        self,
+        name,
+        cometID,
+        position,
+        velocity
+    ):
 
-    def loadComet(self, name, bodyID, cometID, date):
-
-        data = self.getStateVector(
-            bodyID,
-            date
-        )
-
-        position, velocity = self.parseStateVector(data)
-
-        comet = Comet(
+        return Comet(
             name,
             position,
             cometID,
             velocity
         )
-
-        return comet

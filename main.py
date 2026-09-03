@@ -8,10 +8,8 @@ config = SimulationConfig(
     "1P/Halley",
     "90000030;",
     "1P",
-    "2026-09-02",
-    24 * 60 * 60,
-    60 * 60,
-    12 * 60 * 60,
+    "2026-09-02 12:00",
+    "2026-09-03 12:00",
     [
         (10, 0, 0),
         (-10, 0, 0),
@@ -31,6 +29,32 @@ print("\nSimulation complete.")
 print(
     "Comet:",
     results["comet"].CelesName
+)
+
+print(
+    "Automatic simulation start:",
+    results["simulationStartDate"]
+)
+
+print(
+    "Fragmentation:",
+    results["fragmentationDate"]
+)
+
+print(
+    "Simulation end:",
+    results["simulationEndDate"]
+)
+
+print(
+    "JPL step:",
+    results["jplStep"]
+)
+
+print(
+    "Physics timestep:",
+    results["timeStep"],
+    "seconds"
 )
 
 print(
