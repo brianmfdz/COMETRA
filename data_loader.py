@@ -1,5 +1,6 @@
 import requests
 import re
+from datetime import datetime, timedelta
 
 from celestial_body import Planet, Comet
 
@@ -47,7 +48,12 @@ class DataLoader:
 
         return data
 
-    def parseEphemeris(self, data):
+    def parseEphemeris(
+        self,
+        data,
+        startDate,
+        stepSize
+    ):
 
         result = data["result"]
 
@@ -61,45 +67,93 @@ class DataLoader:
 
         stateData = result[start:end]
 
-        pattern = (
-            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-            r"\s*Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-            r"\s*Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-            r"\s*VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-            r"\s*VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-            r"\s*VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)"
-        )
-
-        matches = re.findall(
-            pattern,
+        xValues = re.findall(
+            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
             stateData
         )
 
-        if not matches:
+        yValues = re.findall(
+            r"Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        zValues = re.findall(
+            r"Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vxValues = re.findall(
+            r"VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vyValues = re.findall(
+            r"VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        vzValues = re.findall(
+            r"VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
+            stateData
+        )
+
+        pointCount = min(
+            len(xValues),
+            len(yValues),
+            len(zValues),
+            len(vxValues),
+            len(vyValues),
+            len(vzValues)
+        )
+
+        if pointCount == 0:
             raise ValueError(
                 "No state vectors were found."
             )
 
+        startDateTime = datetime.strptime(
+            startDate,
+            "%Y-%m-%d %H:%M"
+        )
+
+        if stepSize == "1h":
+            timeStep = timedelta(hours=1)
+
+        elif stepSize == "6h":
+            timeStep = timedelta(hours=6)
+
+        elif stepSize == "1d":
+            timeStep = timedelta(days=1)
+
+        else:
+            raise ValueError(
+                f"Unsupported JPL step size: {stepSize}"
+            )
+
         ephemeris = []
 
-        for match in matches:
+        for i in range(pointCount):
 
-            x, y, z, vx, vy, vz = match
+            timestamp = (
+                startDateTime
+                + i * timeStep
+            )
 
             position = [
-                float(x) * 1000,
-                float(y) * 1000,
-                float(z) * 1000
+                float(xValues[i]) * 1000,
+                float(yValues[i]) * 1000,
+                float(zValues[i]) * 1000
             ]
 
             velocity = [
-                float(vx) * 1000,
-                float(vy) * 1000,
-                float(vz) * 1000
+                float(vxValues[i]) * 1000,
+                float(vyValues[i]) * 1000,
+                float(vzValues[i]) * 1000
             ]
 
             ephemeris.append(
                 {
+                    "time": timestamp,
                     "position": position,
                     "velocity": velocity
                 }
@@ -123,7 +177,11 @@ class DataLoader:
             stepSize
         )
 
-        return self.parseEphemeris(data)
+        return self.parseEphemeris(
+            data,
+            startDate,
+            stepSize
+        )
 
     def loadPlanet(
         self,

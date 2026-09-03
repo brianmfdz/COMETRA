@@ -284,6 +284,12 @@ class SimulationRunner:
             bodies
         )
 
+        for body in solarSystem.bodies:
+
+            body.trajectoryTimes = [
+                simulationStartDate
+            ]
+
         fragmentationEvent = (
             self.createFragmentationEvent(
                 config
@@ -305,13 +311,11 @@ class SimulationRunner:
         )
 
         if fragmentationPoint >= totalPoints:
+
             raise ValueError(
                 "Fragmentation point is outside "
                 "the available JPL data."
             )
-
-        # Store the real JPL trajectory
-        # before fragmentation.
 
         for point in range(
             1,
@@ -323,9 +327,6 @@ class SimulationRunner:
                 self.jplEphemeris,
                 point
             )
-
-        # Get the exact JPL state at
-        # fragmentation.
 
         cometState = (
             self.jplEphemeris.getState(
@@ -351,15 +352,13 @@ class SimulationRunner:
 
         for fragment in fragments:
 
+            fragment.trajectoryTimes = [
+                fragmentationDate
+            ]
+
             solarSystem.bodies.append(
                 fragment
             )
-
-        # Continue using JPL for all
-        # real bodies.
-        #
-        # COMETRA calculates movement
-        # only for fragments.
 
         for point in range(
             fragmentationPoint + 1,
@@ -372,12 +371,20 @@ class SimulationRunner:
                 point
             )
 
+            newTime = (
+                self.jplEphemeris.getState(
+                    config.cometName,
+                    point
+                )["time"]
+            )
+
             for fragment in fragments:
 
                 self.fragmentSimulator.step(
                     fragment,
                     solarSystem,
-                    timeStep
+                    timeStep,
+                    newTime
                 )
 
         earth = self.findEarth(
@@ -390,8 +397,13 @@ class SimulationRunner:
 
             for fragment in fragments:
 
-                minimumDistance, closestPoint = (
-                    self.trajectoryAnalysis.calculateClosestApproach(
+                (
+                    minimumDistance,
+                    closestPoint,
+                    closestTime
+                ) = (
+                    self.trajectoryAnalysis
+                    .calculateClosestApproach(
                         earth,
                         fragment
                     )
@@ -401,7 +413,8 @@ class SimulationRunner:
                     {
                         "fragment": fragment,
                         "distance": minimumDistance,
-                        "point": closestPoint
+                        "point": closestPoint,
+                        "time": closestTime
                     }
                 )
 

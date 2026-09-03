@@ -30,3 +30,7 @@ class RealBodySimulator:
             body.trajectory.append(
                 body.CelesPosition.copy()
             )
+
+            body.trajectoryTimes.append(
+                state["time"]
+            )

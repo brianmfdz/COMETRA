@@ -70,7 +70,8 @@ class FragmentSimulator:
         self,
         fragment,
         solarSystem,
-        dt
+        dt,
+        newTime
     ):
 
         oldAcceleration = (
@@ -113,4 +114,8 @@ class FragmentSimulator:
 
         fragment.trajectory.append(
             fragment.CelesPosition.copy()
+        )
+
+        fragment.trajectoryTimes.append(
+            newTime
         )

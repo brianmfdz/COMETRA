@@ -10,13 +10,21 @@ class CelestialBody:
         CelesMass=0
     ):
         self.CelesName = CelesName
-        self.CelesPosition = np.array(CelesPosition, dtype=float)
-        self.CelesVelocity = np.array(CelesVelocity, dtype=float)
+        self.CelesPosition = np.array(
+            CelesPosition,
+            dtype=float
+        )
+        self.CelesVelocity = np.array(
+            CelesVelocity,
+            dtype=float
+        )
         self.CelesMass = CelesMass
 
         self.trajectory = [
             self.CelesPosition.copy()
         ]
+
+        self.trajectoryTimes = []
 
     def setPosition(self, newPosition):
         self.CelesPosition = np.array(

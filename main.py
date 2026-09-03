@@ -70,8 +70,12 @@ for result in results["closestApproaches"]:
     fragment = result["fragment"]
 
     print(
-        fragment.FragmentID,
-        "trajectory points:",
+        "\n",
+        fragment.FragmentID
+    )
+
+    print(
+        "Trajectory points:",
         len(fragment.trajectory)
     )
 
@@ -85,3 +89,52 @@ for result in results["closestApproaches"]:
         "Closest trajectory point:",
         result["point"]
     )
+
+    print(
+        "Closest approach time:",
+        result["time"]
+    )
+
+
+print("\nTimestamp verification:")
+
+cometName = results["comet"].CelesName
+
+firstTime = runner.jplEphemeris.getState(
+    cometName,
+    0
+)["time"]
+
+fragmentationPoint = results["fragmentationPoint"]
+
+fragmentationTime = runner.jplEphemeris.getState(
+    cometName,
+    fragmentationPoint
+)["time"]
+
+lastPoint = (
+    runner.jplEphemeris.getPointCount(
+        cometName
+    )
+    - 1
+)
+
+lastTime = runner.jplEphemeris.getState(
+    cometName,
+    lastPoint
+)["time"]
+
+print(
+    "First JPL time:",
+    firstTime
+)
+
+print(
+    "Fragmentation JPL time:",
+    fragmentationTime
+)
+
+print(
+    "Last JPL time:",
+    lastTime
+)

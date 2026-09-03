@@ -11,23 +11,58 @@ class TrajectoryAnalysis:
 
         minimumDistance = None
         closestPoint = None
+        closestTime = None
 
-        for i, position in enumerate(
-            movingBody.trajectory
+        targetStates = {}
+
+        for i, time in enumerate(
+            targetBody.trajectoryTimes
         ):
 
-            targetPosition = targetBody.trajectory[i]
+            targetStates[time] = (
+                targetBody.trajectory[i]
+            )
+
+        for i, time in enumerate(
+            movingBody.trajectoryTimes
+        ):
+
+            if time not in targetStates:
+                continue
+
+            movingPosition = (
+                movingBody.trajectory[i]
+            )
+
+            targetPosition = (
+                targetStates[time]
+            )
 
             distance = np.linalg.norm(
-                position - targetPosition
+                movingPosition - targetPosition
             )
 
             if minimumDistance is None:
+
                 minimumDistance = distance
                 closestPoint = i
+                closestTime = time
 
             elif distance < minimumDistance:
+
                 minimumDistance = distance
                 closestPoint = i
+                closestTime = time
 
-        return minimumDistance, closestPoint
+        if minimumDistance is None:
+
+            raise ValueError(
+                "No matching timestamps were found "
+                "between the trajectories."
+            )
+
+        return (
+            minimumDistance,
+            closestPoint,
+            closestTime
+        )
