@@ -7,7 +7,12 @@ from celestial_body import Planet, Comet
 
 class DataLoader:
 
-    API_URL = "https://ssd.jpl.nasa.gov/api/horizons.api"
+    API_URL = (
+        "https://ssd.jpl.nasa.gov/api/horizons.api"
+    )
+
+    CHUNK_YEARS = 5
+
 
     def getEphemeris(
         self,
@@ -28,128 +33,234 @@ class DataLoader:
             "OUT_UNITS": "'KM-S'",
             "REF_PLANE": "'ECLIPTIC'",
             "REF_SYSTEM": "'ICRF'",
-            "VEC_TABLE": "'2'"
+            "VEC_TABLE": "'2'",
+            "VEC_LABELS": "'YES'"
         }
+
 
         response = requests.get(
             self.API_URL,
             params=parameters,
-            timeout=30
+            timeout=60
         )
+
 
         response.raise_for_status()
 
+
         data = response.json()
 
+
         if "result" not in data:
-            raise ValueError(
-                "JPL Horizons did not return a result."
+
+            message = data.get(
+                "message",
+                "Unknown JPL error."
             )
 
+            raise ValueError(
+                f"JPL request failed for "
+                f"body '{bodyID}'. "
+                f"JPL message: {message}"
+            )
+
+
+        result = data["result"]
+
+
+        if (
+            "$$SOE" not in result
+            or "$$EOE" not in result
+        ):
+
+            raise ValueError(
+                f"JPL returned no ephemeris data "
+                f"for body '{bodyID}' "
+                f"from {startDate} to {endDate}. "
+                f"JPL response: "
+                f"{result[:500]}"
+            )
+
+
         return data
+
 
     def parseEphemeris(
         self,
         data,
-        startDate,
-        stepSize
+        startDate=None,
+        stepSize=None
     ):
 
         result = data["result"]
 
-        start = result.find("$$SOE")
-        end = result.find("$$EOE")
+
+        start = result.find(
+            "$$SOE"
+        )
+
+
+        end = result.find(
+            "$$EOE"
+        )
+
 
         if start == -1 or end == -1:
+
             raise ValueError(
                 "Ephemeris data not found."
             )
 
-        stateData = result[start:end]
 
-        xValues = re.findall(
-            r"X\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
+        stateData = result[
+            start + len("$$SOE"):
+            end
+        ]
 
-        yValues = re.findall(
-            r"Y\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
 
-        zValues = re.findall(
-            r"Z\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
-
-        vxValues = re.findall(
-            r"VX\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
-
-        vyValues = re.findall(
-            r"VY\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
-
-        vzValues = re.findall(
-            r"VZ\s*=\s*([+-]?\d+(?:\.\d+)?(?:E[+-]?\d+)?)",
-            stateData
-        )
-
-        pointCount = min(
-            len(xValues),
-            len(yValues),
-            len(zValues),
-            len(vxValues),
-            len(vyValues),
-            len(vzValues)
-        )
-
-        if pointCount == 0:
-            raise ValueError(
-                "No state vectors were found."
+        pattern = re.compile(
+            r"""
+            (?P<time>
+                \d{4}
+                -
+                [A-Za-z]{3}
+                -
+                \d{2}
+                \s+
+                \d{2}
+                :
+                \d{2}
+                :
+                \d{2}
+                (?:\.\d+)?
             )
 
-        startDateTime = datetime.strptime(
-            startDate,
-            "%Y-%m-%d %H:%M"
+            .*?
+
+            X\s*=\s*
+            (?P<x>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+
+            .*?
+
+            Y\s*=\s*
+            (?P<y>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+
+            .*?
+
+            Z\s*=\s*
+            (?P<z>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+
+            .*?
+
+            VX\s*=\s*
+            (?P<vx>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+
+            .*?
+
+            VY\s*=\s*
+            (?P<vy>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+
+            .*?
+
+            VZ\s*=\s*
+            (?P<vz>
+                [+-]?
+                \d+(?:\.\d+)?
+                (?:E[+-]?\d+)?
+            )
+            """,
+            re.VERBOSE
+            | re.DOTALL
         )
 
-        if stepSize == "1h":
-            timeStep = timedelta(hours=1)
 
-        elif stepSize == "6h":
-            timeStep = timedelta(hours=6)
-
-        elif stepSize == "1d":
-            timeStep = timedelta(days=1)
-
-        else:
-            raise ValueError(
-                f"Unsupported JPL step size: {stepSize}"
+        matches = list(
+            pattern.finditer(
+                stateData
             )
+        )
+
+
+        if len(matches) == 0:
+
+            raise ValueError(
+                "No state vectors were found "
+                "in the JPL response."
+            )
+
 
         ephemeris = []
 
-        for i in range(pointCount):
 
-            timestamp = (
-                startDateTime
-                + i * timeStep
+        for match in matches:
+
+            timeText = match.group(
+                "time"
             )
 
+
+            timeText = (
+                timeText.split(".")[0]
+            )
+
+
+            timestamp = datetime.strptime(
+                timeText,
+                "%Y-%b-%d %H:%M:%S"
+            )
+
+
             position = [
-                float(xValues[i]) * 1000,
-                float(yValues[i]) * 1000,
-                float(zValues[i]) * 1000
+
+                float(
+                    match.group("x")
+                ) * 1000,
+
+                float(
+                    match.group("y")
+                ) * 1000,
+
+                float(
+                    match.group("z")
+                ) * 1000
             ]
 
+
             velocity = [
-                float(vxValues[i]) * 1000,
-                float(vyValues[i]) * 1000,
-                float(vzValues[i]) * 1000
+
+                float(
+                    match.group("vx")
+                ) * 1000,
+
+                float(
+                    match.group("vy")
+                ) * 1000,
+
+                float(
+                    match.group("vz")
+                ) * 1000
             ]
+
 
             ephemeris.append(
                 {
@@ -159,7 +270,64 @@ class DataLoader:
                 }
             )
 
+
         return ephemeris
+
+
+    def createChunks(
+        self,
+        startDate,
+        endDate
+    ):
+
+        chunks = []
+
+        currentStart = startDate
+
+
+        while currentStart < endDate:
+
+            try:
+
+                currentEnd = currentStart.replace(
+                    year=currentStart.year
+                    + self.CHUNK_YEARS
+                )
+
+            except ValueError:
+
+                currentEnd = (
+                    currentStart
+                    + timedelta(
+                        days=365
+                        * self.CHUNK_YEARS
+                    )
+                )
+
+
+            if currentEnd > endDate:
+
+                currentEnd = endDate
+
+
+            chunks.append(
+                (
+                    currentStart,
+                    currentEnd
+                )
+            )
+
+
+            if currentEnd >= endDate:
+
+                break
+
+
+            currentStart = currentEnd
+
+
+        return chunks
+
 
     def loadEphemeris(
         self,
@@ -170,18 +338,112 @@ class DataLoader:
         stepSize
     ):
 
-        data = self.getEphemeris(
-            bodyID,
+        startDateTime = datetime.strptime(
             startDate,
-            endDate,
-            stepSize
+            "%Y-%m-%d %H:%M"
         )
 
-        return self.parseEphemeris(
-            data,
-            startDate,
-            stepSize
+
+        endDateTime = datetime.strptime(
+            endDate,
+            "%Y-%m-%d %H:%M"
         )
+
+
+        chunks = self.createChunks(
+            startDateTime,
+            endDateTime
+        )
+
+
+        completeEphemeris = []
+
+
+        for chunkStart, chunkEnd in chunks:
+
+            chunkStartText = (
+                chunkStart.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            )
+
+
+            chunkEndText = (
+                chunkEnd.strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            )
+
+
+            try:
+
+                data = self.getEphemeris(
+                    bodyID,
+                    chunkStartText,
+                    chunkEndText,
+                    stepSize
+                )
+
+
+                chunkEphemeris = (
+                    self.parseEphemeris(
+                        data,
+                        chunkStartText,
+                        stepSize
+                    )
+                )
+
+
+            except Exception as error:
+
+                raise ValueError(
+                    f"Failed loading "
+                    f"{bodyName} "
+                    f"({bodyID}) "
+                    f"for "
+                    f"{chunkStartText} → "
+                    f"{chunkEndText}. "
+                    f"{error}"
+                )
+
+
+            if len(
+                completeEphemeris
+            ) > 0:
+
+                lastTime = (
+                    completeEphemeris[-1]["time"]
+                )
+
+
+                chunkEphemeris = [
+
+                    state
+
+                    for state in chunkEphemeris
+
+                    if state["time"] > lastTime
+
+                ]
+
+
+            completeEphemeris.extend(
+                chunkEphemeris
+            )
+
+
+        if len(
+            completeEphemeris
+        ) == 0:
+
+            raise ValueError(
+                f"No JPL ephemeris data was loaded "
+                f"for {bodyName}."
+            )
+
+
+        return completeEphemeris
+
 
     def loadPlanet(
         self,
@@ -198,6 +460,7 @@ class DataLoader:
             velocity,
             mass
         )
+
 
     def loadComet(
         self,
