@@ -10,6 +10,7 @@ from trajectory_analysis import TrajectoryAnalysis
 from jpl_ephemeris import JPLEphemeris
 from real_body_simulator import RealBodySimulator
 from fragment_simulator import FragmentSimulator
+from collision_analysis import CollisionAnalysis
 
 
 class SimulationRunner:
@@ -37,6 +38,8 @@ class SimulationRunner:
         self.fragmentSimulator = (
             FragmentSimulator()
         )
+
+        self.collisionAnalysis = CollisionAnalysis()
 
     def createSun(self):
 
@@ -274,6 +277,18 @@ class SimulationRunner:
             jplStep
         )
 
+        cometEphemeris = self.jplEphemeris.bodyData[
+            config.cometName
+        ]
+        cometBaselinePositions = tuple(
+            tuple(state["position"])
+            for state in cometEphemeris
+        )
+        cometBaselineTimes = tuple(
+            state["time"]
+            for state in cometEphemeris
+        )
+
         bodies = (
             [sun]
             + planets
@@ -335,6 +350,8 @@ class SimulationRunner:
             )
         )
 
+        fragmentationDate = cometState["time"]
+
         comet.setPosition(
             cometState["position"]
         )
@@ -342,6 +359,18 @@ class SimulationRunner:
         comet.CelesVelocity = (
             cometState["velocity"]
         )
+
+        simulationEndDate = self.jplEphemeris.getState(
+            config.cometName,
+            totalPoints - 1
+        )["time"]
+
+        if simulationEndDate <= fragmentationDate:
+            raise ValueError(
+                "The selected simulation period does not extend beyond "
+                "the JPL sample used for fragmentation. Choose a later "
+                "simulation end time."
+            )
 
         fragments = (
             self.fragmentationModel.createFragments(
@@ -393,6 +422,11 @@ class SimulationRunner:
 
         closestApproaches = []
 
+        collisions = self.collisionAnalysis.findCollisions(
+            fragments,
+            [sun] + planets
+        )
+
         if earth is not None:
 
             for fragment in fragments:
@@ -421,7 +455,12 @@ class SimulationRunner:
         return {
             "solarSystem": solarSystem,
             "comet": comet,
+            "cometBaselinePositions": cometBaselinePositions,
+            "cometBaselineTimes": cometBaselineTimes,
             "fragments": fragments,
+            "collisions": collisions,
+            "fragmentRadius": self.collisionAnalysis.fragmentRadius,
+            "separationVelocities": config.separationVelocities,
             "closestApproaches": closestApproaches,
             "simulationStartDate": simulationStartDate,
             "fragmentationDate": fragmentationDate,
