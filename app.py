@@ -1,3 +1,5 @@
+from bisect import bisect_left
+
 import streamlit as st
 import plotly.graph_objects as go
 import numpy as np
@@ -5,6 +7,42 @@ from datetime import datetime, date, time
 
 from simulation_runner import SimulationRunner
 from simulation_config import SimulationConfig
+from playback_view import createPlaybackHtml, getCollisionFrameIndex
+
+
+PLANET_COLORS = {
+    "Mercury": "#697586",
+    "Venus": "#C77700",
+    "Earth": "#1769AA",
+    "Mars": "#C44536",
+    "Jupiter": "#8054A1",
+    "Saturn": "#9A6700",
+    "Uranus": "#00838F",
+    "Neptune": "#3F51B5"
+}
+
+FRAGMENT_COLORS = [
+    "#0072B2",
+    "#D55E00",
+    "#009E73",
+    "#CC79A7",
+    "#E69F00",
+    "#56B4E9",
+    "#8C564B",
+    "#4C78A8",
+    "#B279A2",
+    "#2F6B4F",
+    "#B23A48",
+    "#6B5CA5",
+    "#7A6A00",
+    "#277DA1",
+    "#F28E2B",
+    "#5B8E7D",
+    "#A05195",
+    "#3D5A80",
+    "#BC6C25",
+    "#577590",
+]
 
 
 st.set_page_config(
@@ -26,7 +64,7 @@ comets = {
         "designation": "1P"
     },
     "67P/Churyumov-Gerasimenko": {
-        "id": "67P;",
+        "id": "90000703;",
         "designation": "67P"
     },
     "9P/Tempel 1": {
@@ -58,31 +96,37 @@ with st.sidebar:
 
     st.subheader("Fragmentation Event")
 
-    fragmentationDate = st.date_input(
-        "Date",
-        value=date(2027, 1, 1),
-        min_value=date(1900, 1, 1),
-        max_value=date(2200, 12, 31)
-    )
+    fragmentationDateColumn, fragmentationTimeColumn = st.columns(2)
+    with fragmentationDateColumn:
+        fragmentationDate = st.date_input(
+            "Fragmentation date",
+            value=date(2027, 1, 1),
+            min_value=date(1900, 1, 1),
+            max_value=date(2200, 12, 31)
+        )
 
-    fragmentationTime = st.time_input(
-        "Time",
-        value=time(12, 0)
-    )
+    with fragmentationTimeColumn:
+        fragmentationTime = st.time_input(
+            "Fragmentation time",
+            value=time(12, 0)
+        )
 
     st.subheader("Simulation End")
 
-    simulationEndDate = st.date_input(
-        "End Date",
-        value=date(2030, 1, 1),
-        min_value=date(1900, 1, 1),
-        max_value=date(2200, 12, 31)
-    )
+    simulationEndDateColumn, simulationEndTimeColumn = st.columns(2)
+    with simulationEndDateColumn:
+        simulationEndDate = st.date_input(
+            "Simulation end date",
+            value=date(2030, 1, 1),
+            min_value=date(1900, 1, 1),
+            max_value=date(2200, 12, 31)
+        )
 
-    simulationEndTime = st.time_input(
-        "End Time",
-        value=time(12, 0)
-    )
+    with simulationEndTimeColumn:
+        simulationEndTime = st.time_input(
+            "Simulation end time",
+            value=time(12, 0)
+        )
 
     st.divider()
 
@@ -97,8 +141,8 @@ with st.sidebar:
     )
 
     st.caption(
-        "Separation velocity relative to the "
-        "original comet at fragmentation."
+        "X, Y, and Z values are velocity components in m/s added to "
+        "the comet's JPL velocity at the fragmentation event."
     )
 
     separationVelocities = []
@@ -107,7 +151,7 @@ with st.sidebar:
 
         with st.expander(
             f"Fragment F{i + 1}",
-            expanded=(i < 3)
+            expanded=(i == 0)
         ):
 
             xVelocity = st.number_input(
@@ -153,21 +197,22 @@ with st.sidebar:
         index=0
     )
 
-    maxAnimationFrames = st.slider(
-        "Animation frames",
-        min_value=50,
-        max_value=500,
-        value=250,
-        step=25
-    )
+    with st.expander("Display options"):
+        maxAnimationFrames = st.slider(
+            "Animation frames",
+            min_value=50,
+            max_value=500,
+            value=250,
+            step=25
+        )
 
-    trajectoryPoints = st.slider(
-        "Trajectory points",
-        min_value=100,
-        max_value=2000,
-        value=800,
-        step=100
-    )
+        trajectoryPoints = st.slider(
+            "Trajectory points",
+            min_value=100,
+            max_value=2000,
+            value=800,
+            step=100
+        )
 
     st.divider()
 
@@ -207,29 +252,77 @@ def getXYPosition(
     )
 
 
+def getTrajectoryPath(
+    body,
+    collisions,
+    maximumCount
+):
+    indices = sampleIndices(
+        len(body.trajectory),
+        maximumCount
+    )
+    trajectoryPoints = [
+        (
+            body.trajectoryTimes[index],
+            getXYPosition(body.trajectory[index])
+        )
+        for index in indices
+    ]
+
+    for collision in collisions:
+        if collision["bodyA"] == body.CelesName:
+            position = collision["positionA"]
+        elif collision["bodyB"] == body.CelesName:
+            position = collision["positionB"]
+        else:
+            continue
+
+        bracketIndex = bisect_left(
+            body.trajectoryTimes,
+            collision["time"]
+        )
+        for index in (bracketIndex - 1, bracketIndex):
+            if 0 <= index < len(body.trajectory):
+                trajectoryPoints.append(
+                    (
+                        body.trajectoryTimes[index],
+                        getXYPosition(body.trajectory[index])
+                    )
+                )
+
+        trajectoryPoints.append(
+            (
+                collision["time"],
+                getXYPosition(position)
+            )
+        )
+
+    trajectoryPoints.sort(
+        key=lambda point: point[0]
+    )
+
+    return [
+        point[1]
+        for point in trajectoryPoints
+    ]
+
+
 def createPlot(
     result
 ):
 
     solarSystem = result["solarSystem"]
     comet = result["comet"]
+    cometBaselinePositions = result["cometBaselinePositions"]
     fragments = result["fragments"]
     fragmentationPoint = result["fragmentationPoint"]
+    collisions = result["collisions"]
 
     planets = []
 
     for body in solarSystem.bodies:
 
-        if body.CelesName in [
-            "Mercury",
-            "Venus",
-            "Earth",
-            "Mars",
-            "Jupiter",
-            "Saturn",
-            "Uranus",
-            "Neptune"
-        ]:
+        if body.CelesName in PLANET_COLORS:
 
             planets.append(body)
 
@@ -242,9 +335,12 @@ def createPlot(
             y=[0],
             mode="markers",
             name="Sun",
+            legendgroup="Sun",
             marker=dict(
                 size=12,
-                symbol="circle"
+                symbol="circle",
+                color="#E0A800",
+                line=dict(color="#725500", width=1)
             ),
             hovertemplate=(
                 "<b>Sun</b>"
@@ -255,25 +351,20 @@ def createPlot(
 
     # Planet paths
     for planet in planets:
-
-        trajectory = [
-            getXYPosition(position)
-            for position in planet.trajectory
-        ]
-
-        indices = sampleIndices(
-            len(trajectory),
+        sampledTrajectory = getTrajectoryPath(
+            planet,
+            collisions,
             trajectoryPoints
         )
 
         xValues = [
-            trajectory[i][0]
-            for i in indices
+            position[0]
+            for position in sampledTrajectory
         ]
 
         yValues = [
-            trajectory[i][1]
-            for i in indices
+            position[1]
+            for position in sampledTrajectory
         ]
 
         figure.add_trace(
@@ -282,70 +373,49 @@ def createPlot(
                 y=yValues,
                 mode="lines",
                 name=f"{planet.CelesName} orbit",
+                legendgroup=planet.CelesName,
                 line=dict(
-                    dash="dot",
-                    width=1
+                    color=PLANET_COLORS[planet.CelesName],
+                    dash="solid",
+                    width=1.5
                 ),
-                hoverinfo="skip",
-                showlegend=False
+                hoverinfo="skip"
             )
         )
 
-    # Original comet path from JPL
+    # Plot the unmodified position vectors copied from the JPL ephemeris.
     cometTrajectory = [
         getXYPosition(position)
-        for position in comet.trajectory
-    ]
-
-    cometIndices = sampleIndices(
-        len(cometTrajectory),
-        trajectoryPoints
-    )
-
-    cometX = [
-        cometTrajectory[i][0]
-        for i in cometIndices
-    ]
-
-    cometY = [
-        cometTrajectory[i][1]
-        for i in cometIndices
+        for position in cometBaselinePositions
     ]
 
     figure.add_trace(
         go.Scatter(
-            x=cometX,
-            y=cometY,
+            x=[position[0] for position in cometTrajectory],
+            y=[position[1] for position in cometTrajectory],
             mode="lines",
             name=f"{comet.CelesName} JPL baseline",
-            line=dict(
-                dash="dot",
-                width=2
-            )
+            legendgroup="comet-baseline",
+            line=dict(color="#273746", dash="dash", width=2.5)
         )
     )
 
     # Fragment paths
-    for fragment in fragments:
-
-        trajectory = [
-            getXYPosition(position)
-            for position in fragment.trajectory
-        ]
-
-        indices = sampleIndices(
-            len(trajectory),
+    for fragmentIndex, fragment in enumerate(fragments):
+        sampledTrajectory = getTrajectoryPath(
+            fragment,
+            collisions,
             trajectoryPoints
         )
 
         xValues = [
-            trajectory[i][0]
-            for i in indices
+            position[0]
+            for position in sampledTrajectory
         ]
 
         yValues = [
-            trajectory[i][1]
-            for i in indices
+            position[1]
+            for position in sampledTrajectory
         ]
 
         figure.add_trace(
@@ -354,27 +424,41 @@ def createPlot(
                 y=yValues,
                 mode="lines",
                 name=f"{fragment.FragmentID} trajectory",
+                legendgroup=fragment.FragmentID,
                 line=dict(
-                    dash="dot",
-                    width=2
+                    color=FRAGMENT_COLORS[
+                        fragmentIndex % len(FRAGMENT_COLORS)
+                    ],
+                    dash="solid",
+                    width=2.5
                 )
             )
         )
 
     # These traces are updated during animation
     animatedTraceIndices = []
+    bodyMarkerTraceIndices = {}
 
     sunTraceIndex = len(figure.data)
+    bodyMarkerTraceIndices["Sun"] = sunTraceIndex
+    sunPoint = 0
+    sunPosition = getXYPosition(
+        solarSystem.bodies[0].trajectory[sunPoint]
+    )
 
     figure.add_trace(
         go.Scatter(
-            x=[0],
-            y=[0],
+            x=[sunPosition[0]],
+            y=[sunPosition[1]],
             mode="markers",
-            name="Sun position",
+            name="Sun",
+            legendgroup="Sun",
+            showlegend=False,
             marker=dict(
                 size=12,
-                symbol="circle"
+                symbol="circle",
+                color="#E0A800",
+                line=dict(color="#725500", width=1)
             )
         )
     )
@@ -386,16 +470,25 @@ def createPlot(
     for planet in planets:
 
         planetTraceIndex = len(figure.data)
+        bodyMarkerTraceIndices[planet.CelesName] = planetTraceIndex
+        planetPoint = 0
+        planetPosition = getXYPosition(
+            planet.trajectory[planetPoint]
+        )
 
         figure.add_trace(
             go.Scatter(
-                x=[0],
-                y=[0],
+                x=[planetPosition[0]],
+                y=[planetPosition[1]],
                 mode="markers",
                 name=planet.CelesName,
+                legendgroup=planet.CelesName,
+                showlegend=False,
                 marker=dict(
                     size=7,
-                    symbol="circle"
+                    symbol="circle",
+                    color=PLANET_COLORS[planet.CelesName],
+                    line=dict(color="#FFFFFF", width=1)
                 ),
                 hovertemplate=(
                     f"<b>{planet.CelesName}</b>"
@@ -410,16 +503,22 @@ def createPlot(
 
     # Main comet
     cometTraceIndex = len(figure.data)
+    bodyMarkerTraceIndices[comet.CelesName] = cometTraceIndex
+    cometPoint = 0
 
     figure.add_trace(
         go.Scatter(
-            x=[cometX[0]],
-            y=[cometY[0]],
+            x=[cometTrajectory[cometPoint][0]],
+            y=[cometTrajectory[cometPoint][1]],
             mode="markers",
             name="Main comet",
+            legendgroup="comet-baseline",
+            showlegend=False,
             marker=dict(
                 size=11,
-                symbol="circle"
+                symbol="diamond",
+                color="#273746",
+                line=dict(color="#FFFFFF", width=1)
             ),
             hovertemplate=(
                 f"<b>{comet.CelesName}</b>"
@@ -434,9 +533,13 @@ def createPlot(
     )
 
     # Fragment markers
-    for fragment in fragments:
+    for fragmentIndex, fragment in enumerate(fragments):
 
         fragmentTraceIndex = len(figure.data)
+        bodyMarkerTraceIndices[fragment.CelesName] = fragmentTraceIndex
+        fragmentColor = FRAGMENT_COLORS[
+            fragmentIndex % len(FRAGMENT_COLORS)
+        ]
 
         figure.add_trace(
             go.Scatter(
@@ -444,11 +547,15 @@ def createPlot(
                 y=[],
                 mode="markers+text",
                 name=f"Fragment {fragment.FragmentID}",
+                legendgroup=fragment.FragmentID,
+                showlegend=False,
                 text=[],
                 textposition="top center",
                 marker=dict(
                     size=10,
-                    symbol="circle"
+                    symbol="circle",
+                    color=fragmentColor,
+                    line=dict(color="#FFFFFF", width=1)
                 ),
                 hovertemplate=(
                     f"<b>{fragment.FragmentID}</b>"
@@ -479,7 +586,9 @@ def createPlot(
             name="Fragmentation point",
             marker=dict(
                 size=9,
-                symbol="x"
+                symbol="x",
+                color="#7B2CBF",
+                line=dict(color="#7B2CBF", width=2)
             ),
             hovertemplate=(
                 "<b>Fragmentation point</b>"
@@ -488,12 +597,50 @@ def createPlot(
         )
     )
 
+    collisionTraceIndex = len(figure.data)
+    figure.add_trace(
+        go.Scatter(
+            x=[],
+            y=[],
+            mode="markers+text",
+            name="Collision",
+            legendgroup="collision",
+            showlegend=False,
+            text=[],
+            textposition="top center",
+            marker=dict(
+                size=24,
+                symbol="circle-open",
+                color="#c0392b",
+                line=dict(
+                    color="#c0392b",
+                    width=3
+                )
+            ),
+            visible=False,
+            hovertemplate=(
+                "<b>Collision</b>"
+                "<extra></extra>"
+            )
+        )
+    )
+
     # Create animation frames
-    totalPoints = len(comet.trajectory)
+    totalPoints = len(cometBaselinePositions)
 
     animationIndices = sampleIndices(
         totalPoints,
         maxAnimationFrames
+    )
+    collisionIndices = [
+        getCollisionFrameIndex(
+            collision,
+            result["cometBaselineTimes"]
+        )
+        for collision in collisions
+    ]
+    animationIndices = sorted(
+        set(animationIndices + collisionIndices)
     )
 
     frames = []
@@ -540,11 +687,11 @@ def createPlot(
 
         cometPoint = min(
             mainPoint,
-            len(comet.trajectory) - 1
+            len(cometBaselinePositions) - 1
         )
 
         cometPosition = getXYPosition(
-            comet.trajectory[cometPoint]
+            cometBaselinePositions[cometPoint]
         )
 
         frameData.append(
@@ -572,7 +719,6 @@ def createPlot(
             fragmentPoint = (
                 mainPoint
                 - fragmentationPoint
-                + 1
             )
 
             fragmentPoint = min(
@@ -646,10 +792,32 @@ def createPlot(
         xaxis=dict(
             title="X Distance from Sun (AU)",
             scaleanchor="y",
-            scaleratio=1
+            scaleratio=1,
+            showgrid=True,
+            gridcolor="#E5E9EF",
+            zerolinecolor="#AAB4C0"
         ),
         yaxis=dict(
-            title="Y Distance from Sun (AU)"
+            title="Y Distance from Sun (AU)",
+            showgrid=True,
+            gridcolor="#E5E9EF",
+            zerolinecolor="#AAB4C0"
+        ),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        font=dict(color="#263238"),
+        legend=dict(
+            title="Legend",
+            orientation="h",
+            x=0,
+            y=1.16,
+            xanchor="left",
+            yanchor="bottom",
+            bgcolor="rgba(255,255,255,0.92)",
+            bordercolor="#C7D0D9",
+            borderwidth=1,
+            groupclick="togglegroup",
+            font=dict(size=11)
         ),
         hovermode="closest",
         margin=dict(
@@ -658,77 +826,10 @@ def createPlot(
             t=120,
             b=80
         ),
-        updatemenus=[
-            dict(
-                type="buttons",
-                showactive=False,
-                x=0.02,
-                y=1.08,
-                xanchor="left",
-                yanchor="bottom",
-                buttons=[
-                    dict(
-                        label="Play",
-                        method="animate",
-                        args=[
-                            None,
-                            {
-                                "frame": {
-                                    "duration": 80,
-                                    "redraw": True
-                                },
-                                "transition": {
-                                    "duration": 0
-                                },
-                                "fromcurrent": True
-                            }
-                        ]
-                    ),
-                    dict(
-                        label="Pause",
-                        method="animate",
-                        args=[
-                            [None],
-                            {
-                                "frame": {
-                                    "duration": 0,
-                                    "redraw": False
-                                },
-                                "mode": "immediate"
-                            }
-                        ]
-                    )
-                ]
-            )
-        ],
-        sliders=[
-            dict(
-                active=0,
-                x=0.22,
-                y=1.08,
-                len=0.73,
-                currentvalue=dict(
-                    prefix="Simulation point: "
-                ),
-                steps=[
-                    dict(
-                        label=str(index),
-                        method="animate",
-                        args=[
-                            [str(index)],
-                            {
-                                "frame": {
-                                    "duration": 0,
-                                    "redraw": True
-                                },
-                                "mode": "immediate"
-                            }
-                        ]
-                    )
-                    for index in animationIndices
-                ]
-            )
-        ]
+        meta={
+            "collisionTraceIndex": collisionTraceIndex,
+            "bodyMarkerTraceIndices": bodyMarkerTraceIndices
+        }
     )
 
     return figure
@@ -878,16 +979,21 @@ if "simulationResult" in st.session_state:
 
     st.header("Orbital Visualization")
 
-    figure = createPlot(result)
+    if not result["collisions"]:
+        st.info(
+            "No collisions were detected for the simulated period. "
+            "Detection uses a 1 km fragment radius and known solar-body radii."
+        )
 
-    st.plotly_chart(
-        figure,
-        use_container_width=True,
-        config={
-            "scrollZoom": True,
-            "displaylogo": False,
-            "responsive": True
-        }
+    figure = createPlot(result)
+    st.caption(
+        "Normal Play runs through the full simulation. Collision Play "
+        "starts at the beginning and pauses at each detected collision; "
+        "select Continue to resume."
+    )
+    st.iframe(
+        createPlaybackHtml(result, figure),
+        height=940
     )
 
     st.divider()
@@ -896,12 +1002,10 @@ if "simulationResult" in st.session_state:
 
     fragmentRows = []
 
-    for fragment in fragments:
-
-        separationVelocity = (
-            fragment.CelesVelocity
-            - comet.CelesVelocity
-        )
+    for fragment, separationVelocity in zip(
+        fragments,
+        result["separationVelocities"]
+    ):
 
         separationSpeed = np.linalg.norm(
             separationVelocity
@@ -931,7 +1035,7 @@ if "simulationResult" in st.session_state:
 
     st.dataframe(
         fragmentRows,
-        use_container_width=True,
+        width="stretch",
         hide_index=True
     )
 
@@ -974,7 +1078,7 @@ if "simulationResult" in st.session_state:
 
         st.dataframe(
             approachRows,
-            use_container_width=True,
+            width="stretch",
             hide_index=True
         )
 
@@ -1000,6 +1104,14 @@ if "simulationResult" in st.session_state:
             "separation velocities."
         )
 
+        st.write(
+            "Collision checks use a 1 km spherical radius for each "
+            "fragment and published mean radii for the Sun and planets. "
+            "Contacts are interpolated between trajectory samples. "
+            "Collision playback pauses at each detected contact, but "
+            "impact effects are not modeled; trajectories continue "
+            "unchanged after a contact."
+        )
 else:
 
     st.header("Ready")

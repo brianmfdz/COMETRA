@@ -69,19 +69,10 @@ class Simulator:
         self.currentTime = self.currentTime + dt
 
     def simulate(self, duration, dt):
-
-        targetTime = self.currentTime + duration
-
-        while self.currentTime < targetTime:
-
-            remainingTime = targetTime - self.currentTime
-
-            stepTime = min(
-                dt,
-                remainingTime
-            )
-
-            self.step(stepTime)
+        self.simulateUntil(
+            self.currentTime + duration,
+            dt
+        )
 
     def simulateUntil(self, targetTime, dt):
 
